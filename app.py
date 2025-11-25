@@ -8,6 +8,7 @@ import io
 import time
 from datetime import datetime
 from functools import lru_cache
+import requests
 
 import requests
 from flask import Flask, render_template, request, jsonify, url_for, send_file, redirect, flash
@@ -16,6 +17,11 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+
+# ThingSpeak Configura
+THINGSPEAK_API_KEY = os.getenv('THINGSPEAK_API_KEY', 'EZW1T3EFD0ISPQHY')
+THINGSPEAK_CHANNEL_ID = os.getenv('THINGSPEAK_CHANNEL_ID', '3179450')
+THINGSPEAK_BASE_URL = 'https://api.thingspeak.com'
 
 APP = Flask(__name__)
 APP.secret_key = os.getenv('FLASK_SECRET', 'clave_segura_aqui')
