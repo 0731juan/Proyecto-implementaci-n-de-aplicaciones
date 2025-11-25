@@ -19,14 +19,14 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 APP = Flask(__name__)
-APP.secret_key = os.getenv('FLASK_SECRET', 'clave_segura_aqui')
+APP.secret_key = os.getenv('FLASK_SECRET', 'fb81bf497e4a10a425128911308c5e5442e3d7f3944830d6')
 
 # Football-Data.org config
 FOOTBALL_DATA_KEY = os.getenv('FOOTBALL_DATA_KEY', 'b91aa1544ee549429984e85a0f23a190')
 HEADERS = {'X-Auth-Token': FOOTBALL_DATA_KEY}
 
 # ThingSpeak Config - USA TU CHANNEL ID 3179450
-THINGSPEAK_API_KEY = os.getenv('THINGSPEAK_API_KEY', 'TU_WRITE_API_KEY_AQUI')
+THINGSPEAK_API_KEY = os.getenv('THINGSPEAK_API_KEY', 'EZW1T3EFD0ISPQHY')
 THINGSPEAK_CHANNEL_ID = '3179450'  # TU CHANNEL ID
 THINGSPEAK_BASE_URL = 'https://api.thingspeak.com'
 
