@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>Seguimiento de partidos - Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      body {
+        background-color: #f8f9fa;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+      .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+      }
+      .card-header {
+        background-color: #f8f9fa;
+        font-weight: 600;
+      }
+      .table th {
+        border-top: none;
+        font-weight: 600;
+      }
+      .badge {
+        font-size: 0.75em;
+      }
+      .img-fluid {
+        border-radius: 0.375rem;
+      }
+      .alert {
+        border: none;
+        border-radius: 0.5rem;
+      }
+      .btn-primary {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+      }
+      .stats-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+      }
+      .season-badge {
+        background: #28a745;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.8em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container py-4">
+      <h1 class="mb-3">Seguimiento de partidos de fútbol</h1>
+      <p class="text-muted">Datos proporcionados por Football-Data.org - Solo partidos FINALIZADOS</p>
+
+      <!-- Formulario principal -->
+      <form method="post" class="row g-3 align-items-end" id="main_form">
+        <div class="col-md-3">
+          <label class="form-label">Liga</label>
+          <select id="league_select" name="league_id" class="form-select">
+            <option value="">-- Elige una liga --</option>
+            {% for lid, info in leagues.items() %}
+              <option value="{{ lid }}" {% if selected_league==lid %}selected{% endif %}>
+                {{ info.display }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Equipo</label>
+          <select id="team_select" name="team_id" class="form-select">
+            <option value="">-- Elige equipo --</option>
+            {% for t in teams %}
+              <option value="{{ t.id }}" {% if selected_team==t.id %}selected{% endif %}>
+                {{ t.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Temporada</label>
+          <select name="season" class="form-select">
+            {% for season_id, season_name in seasons.items() %}
+              <option value="{{ season_id }}" {% if selected_season==season_id %}selected{% endif %}>
+                {{ season_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Últimos</label>
+          <select name="limit" class="form-select">
+            <option value="5" {% if limit==5 %}selected{% endif %}>5</option>
+            <option value="10" {% if limit==10 %}selected{% endif %}>10</option>
+            <option value="15" {% if limit==15 %}selected{% endif %}>15</option>
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100">Mostrar</button>
+        </div>
+      </form>
+
+      <!-- Mensajes flash -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mt-3">
+            {% for category, msg in messages %}
+              <div class="alert alert-{{ category }}">{{ msg }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <div class="row mt-4">
+        <div class="col-md-4">
+          <div class="card mb-3">
+            <div class="card-header">Información del equipo</div>
+            <div class="card-body">
+              {% if team_info and team_info.name %}
+                <h5>{{ team_info.name }}</h5>
+                <p><strong>País:</strong> {{ team_info.area.name if team_info.area else 'N/D' }}</p>
+                <p><strong>Fundado:</strong> {{ team_info.founded or 'N/D' }}</p>
+                <p><strong>Estadio:</strong> {{ team_info.venue or 'N/D' }}</p>
+                <p><strong>Colores:</strong> {{ team_info.clubColors or 'N/D' }}</p>
+                {% if team_info.crest %}
+                  <img src="{{ team_info.crest }}" alt="crest" class="img-fluid mt-2" style="max-height: 100px;">
+                {% endif %}
+              {% else %}
+                <p>Selecciona una liga y un equipo y presiona Mostrar.</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              Tabla de Posiciones 
+              {% if selected_season %}
+                <span class="season-badge float-end">{{ seasons[selected_season] }}</span>
+              {% endif %}
+            </div>
+            <div class="card-body small">
+              {% if standings %}
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>#</th><th>Equipo</th><th>PJ</th><th>Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in standings %}
+                      <tr {% if team_info and team_info.id == row.team.id %}class="table-success"{% endif %}>
+                        <td>{{ row.position }}</td>
+                        <td>{{ row.team.name }}</td>
+                        <td>{{ row.playedGames }}</td>
+                        <td><strong>{{ row.points }}</strong></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% else %}
+                <p>Selecciona una liga y temporada para ver la tabla.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-8">
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>
+                Últimos partidos FINALIZADOS 
+                {% if selected_season %}
+                  <span class="season-badge">{{ seasons[selected_season] }}</span>
+                {% endif %}
+              </span>
+              <div>
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('index', league_id=selected_league, team_id=selected_team, season=selected_season, limit=5) }}">Últimos 5</a>
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('index', league_id=selected_league, team_id=selected_team, season=selected_season, limit=10) }}">Últimos 10</a>
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('index', league_id=selected_league, team_id=selected_team, season=selected_season, limit=15) }}">Últimos 15</a>
+              </div>
+            </div>
+            <div class="card-body">
+              {% if matches %}
+                <!-- Estadísticas rápidas -->
+                {% set matches_with_data = matches|selectattr('goals_for', '!=', none)|list %}
+                {% set wins = matches|selectattr('result', 'equalto', 'W')|list %}
+                {% set draws = matches|selectattr('result', 'equalto', 'D')|list %}
+                {% set losses = matches|selectattr('result', 'equalto', 'L')|list %}
+                
+                <div class="stats-info">
+                  <div class="row text-center">
+                    <div class="col-3">
+                      <h5>{{ matches|length }}</h5>
+                      <small>Partidos</small>
+                    </div>
+                    <div class="col-3">
+                      <h5>{{ wins|length }}</h5>
+                      <small>Victorias</small>
+                    </div>
+                    <div class="col-3">
+                      <h5>{{ draws|length }}</h5>
+                      <small>Empates</small>
+                    </div>
+                    <div class="col-3">
+                      <h5>{{ losses|length }}</h5>
+                      <small>Derrotas</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table table-striped table-sm">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Rival</th>
+                        <th>Competición</th>
+                        <th>GF</th>
+                        <th>GC</th>
+                        <th>Resultado</th>
+                        <th>Local</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for m in matches %}
+                        <tr>
+                          <td>{{ m.date.strftime('%Y-%m-%d') if m.date else 'N/D' }}</td>
+                          <td>{{ m.opponent }}</td>
+                          <td>{{ m.competition or 'N/D' }}</td>
+                          <td>
+                            {% if m.goals_for is not none %}
+                              <strong>{{ m.goals_for }}</strong>
+                            {% else %}
+                              <span class="text-muted">-</span>
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if m.goals_against is not none %}
+                              <strong>{{ m.goals_against }}</strong>
+                            {% else %}
+                              <span class="text-muted">-</span>
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if m.result == 'W' %}<span class="badge bg-success">W</span>
+                            {% elif m.result == 'D' %}<span class="badge bg-secondary">D</span>
+                            {% elif m.result == 'L' %}<span class="badge bg-danger">L</span>
+                            {% else %}<span class="badge bg-light text-dark">N/D</span>{% endif %}
+                          </td>
+                          <td>{% if m.is_home %}🏠{% else %}✈️{% endif %}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="mt-4">
+                  <h5 class="mb-3">📊 Gráficos de Rendimiento - {{ seasons[selected_season] }}</h5>
+                  <div class="row">
+                    <div class="col-md-12 mb-4">
+                      <div class="card">
+                        <div class="card-header bg-light">
+                          <h6 class="mb-0">📈 Goles por partido</h6>
+                        </div>
+                        <div class="card-body p-2">
+                          <img src="{{ url_for('plot_goals') }}?team_id={{ selected_team }}&season={{ selected_season }}&limit={{ limit }}" class="img-fluid w-100" alt="Goles por partido" style="max-height: 300px;">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-12 mb-4">
+                      <div class="card">
+                        <div class="card-header bg-light">
+                          <h6 class="mb-0">📊 Goles marcados vs encajados</h6>
+                        </div>
+                        <div class="card-body p-2">
+                          <img src="{{ url_for('plot_stacked') }}?team_id={{ selected_team }}&season={{ selected_season }}&limit={{ limit }}" class="img-fluid w-100" alt="Goles marcados vs encajados" style="max-height: 300px;">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-12 mb-4">
+                      <div class="card">
+                        <div class="card-header bg-light">
+                          <h6 class="mb-0">🔥 Heatmap de goles</h6>
+                        </div>
+                        <div class="card-body p-2">
+                          <img src="{{ url_for('plot_heatmap') }}?team_id={{ selected_team }}&season={{ selected_season }}&limit={{ limit }}" class="img-fluid w-100" alt="Heatmap de goles" style="max-height: 250px;">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              {% else %}
+                <div class="text-center py-4">
+                  <p class="text-muted">No hay partidos FINALIZADOS para mostrar.</p>
+                  <p class="small text-muted">Selecciona una liga, equipo y temporada, luego presiona "Mostrar".</p>
+                  {% if selected_team %}
+                  <div class="alert alert-info mt-3">
+                    <strong>💡 Sugerencia:</strong> Prueba con temporadas anteriores (2022-2023, 2021-2022) para ver más partidos.
+                  </div>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">💡 Información y Consejos</div>
+            <div class="card-body">
+              <p class="small mb-2"><strong>API:</strong> Football-Data.org (10 requests/minuto)</p>
+              <p class="small mb-2"><strong>⚠️ IMPORTANTE:</strong> Solo se muestran partidos <strong>FINALIZADOS</strong></p>
+              <p class="small mb-2"><strong>🔍 Datos:</strong> Los gráficos funcionan con partidos que ya tienen resultados</p>
+              <p class="small mb-0"><strong>🕐 Temporadas:</strong> Usa temporadas anteriores para ver más datos históricos</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="mt-4 text-muted small text-center">
+        <p>Proyecto demo - Datos proporcionados por <a href="https://www.football-data.org/" target="_blank">Football-Data.org</a></p>
+      </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      (function() {
+        const leagueSelect = document.getElementById('league_select');
+        const teamSelect = document.getElementById('team_select');
+        const selectedTeam = "{{ selected_team or '' }}";
+        const selectedSeason = "{{ selected_season or '2023' }}";
+
+        async function loadTeamsForLeague(lid) {
+          if (!lid) {
+            teamSelect.innerHTML = '<option value="">-- Elige equipo --</option>';
+            return;
+          }
+          
+          console.log('Cargando equipos para liga:', lid);
+          teamSelect.innerHTML = '<option value="">Cargando equipos...</option>';
+          teamSelect.disabled = true;
+          
+          try {
+            const resp = await fetch(`/api/teams?league_id=${encodeURIComponent(lid)}&season=${selectedSeason}`);
+            const data = await resp.json();
+            console.log('Respuesta de la API:', data);
+            
+            teamSelect.innerHTML = '<option value="">-- Elige equipo --</option>';
+            teamSelect.disabled = false;
+            
+            if (data && data.teams && data.teams.length) {
+              data.teams.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                if (selectedTeam && String(selectedTeam) === String(t.id)) {
+                  opt.selected = true;
+                }
+                teamSelect.appendChild(opt);
+              });
+            } else {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = data.error ? `Error: ${data.error}` : 'No se encontraron equipos';
+              teamSelect.appendChild(opt);
+            }
+          } catch (err) {
+            console.error('Error cargando equipos:', err);
+            teamSelect.innerHTML = '<option value="">Error cargando equipos</option>';
+            teamSelect.disabled = false;
+          }
+        }
+
+        leagueSelect.addEventListener('change', function() {
+          loadTeamsForLeague(this.value);
+        });
+
+        // Cargar equipos si ya hay una liga seleccionada al cargar la página
+        if (leagueSelect.value) {
+          loadTeamsForLeague(leagueSelect.value);
+        }
+      })();
+    </script>
+  </body>
+</html>
