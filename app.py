@@ -127,6 +127,59 @@ def send_to_thingspeak(goals_for, goals_against, points=None):
         print(f"❌ Error enviando a ThingSpeak: {e}")
         return False
 
+def send_all_matches_to_thingspeak(matches):
+    """Envía todos los partidos a ThingSpeak (simula histórico)"""
+    try:
+        if not THINGSPEAK_API_KEY or THINGSPEAK_API_KEY.startswith('TU_WRITE_API_KEY'):
+            print("❌ ThingSpeak no configurado - saltando envío")
+            return False
+        
+        print(f"📤 Enviando {len(matches)} partidos a ThingSpeak...")
+        
+        # Enviar cada partido con un pequeño delay
+        for i, match in enumerate(matches):
+            goals_for = match['goals_for']
+            goals_against = match['goals_against']
+            
+            if goals_for is not None and goals_against is not None:
+                # Calcular puntos y diferencia
+                if goals_for > goals_against:
+                    points = 3
+                elif goals_for == goals_against:
+                    points = 1
+                else:
+                    points = 0
+                
+                goal_difference = goals_for - goals_against
+                
+                payload = {
+                    'api_key': THINGSPEAK_API_KEY,
+                    'field1': goals_for,
+                    'field2': goals_against,
+                    'field3': points,
+                    'field4': goal_difference,
+                    'field5': 1 if goals_for > goals_against else 0,
+                    'field6': 1 if goals_for == goals_against else 0,
+                    'field7': 1 if goals_for < goals_against else 0,
+                }
+                
+                response = requests.post(f'{THINGSPEAK_BASE_URL}/update', params=payload, timeout=10)
+                
+                if response.status_code == 200:
+                    print(f"✅ Partido {i+1}/{len(matches)} enviado: {goals_for}-{goals_against}")
+                else:
+                    print(f"❌ Error en partido {i+1}: {response.status_code}")
+                
+                # Pequeño delay para no exceder límites de ThingSpeak
+                time.sleep(2)
+        
+        print("✅ Todos los partidos enviados a ThingSpeak")
+        return True
+            
+    except Exception as e:
+        print(f"❌ Error enviando partidos a ThingSpeak: {e}")
+        return False
+
 # Cache por más tiempo (30 minutos)
 @lru_cache(maxsize=128)
 def get_teams_in_league(league_code, season=None):
@@ -319,6 +372,30 @@ def index():
         standings=standings,
         limit=limit
     )
+
+@APP.route('/thingspeak')
+def thingspeak_dashboard():
+    """Dashboard especial para ThingSpeak con todos los datos"""
+    team_id = request.args.get('team_id', '')
+    season = request.args.get('season', '2023')
+    
+    matches = []
+    team_info = {}
+    
+    if team_id:
+        team_info = get_team_by_id(team_id)
+        matches_data = get_last_matches_for_team(team_id, season, 15)  # Siempre 15 partidos
+        matches = build_match_list_from_matches(matches_data, team_id)
+        
+        # Enviar todos los partidos a ThingSpeak
+        if matches:
+            send_all_matches_to_thingspeak(matches)
+    
+    return render_template('thingspeak_dashboard.html',
+                         team_info=team_info,
+                         matches=matches,
+                         season=season,
+                         thingspeak_channel_id=THINGSPEAK_CHANNEL_ID)
 
 @APP.route('/api/teams', methods=['GET'])
 def api_teams():
