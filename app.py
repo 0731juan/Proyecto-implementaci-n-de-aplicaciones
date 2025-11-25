@@ -6,9 +6,9 @@ Optimizado para partidos jugados (no programados)
 import os
 import io
 import time
+import requests
 from datetime import datetime
 from functools import lru_cache
-import requests
 
 import requests
 from flask import Flask, render_template, request, jsonify, url_for, send_file, redirect, flash
@@ -18,17 +18,17 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-# ThingSpeak Configura
-THINGSPEAK_API_KEY = os.getenv('THINGSPEAK_API_KEY', 'EZW1T3EFD0ISPQHY')
-THINGSPEAK_CHANNEL_ID = os.getenv('THINGSPEAK_CHANNEL_ID', '3179450')
-THINGSPEAK_BASE_URL = 'https://api.thingspeak.com'
-
 APP = Flask(__name__)
 APP.secret_key = os.getenv('FLASK_SECRET', 'clave_segura_aqui')
 
 # Football-Data.org config
 FOOTBALL_DATA_KEY = os.getenv('FOOTBALL_DATA_KEY', 'b91aa1544ee549429984e85a0f23a190')
 HEADERS = {'X-Auth-Token': FOOTBALL_DATA_KEY}
+
+# ThingSpeak Config - USA TU CHANNEL ID 3179450
+THINGSPEAK_API_KEY = os.getenv('THINGSPEAK_API_KEY', 'TU_WRITE_API_KEY_AQUI')
+THINGSPEAK_CHANNEL_ID = '3179450'  # TU CHANNEL ID
+THINGSPEAK_BASE_URL = 'https://api.thingspeak.com'
 
 # Control de rate limiting
 LAST_REQUEST_TIME = 0
@@ -90,6 +90,42 @@ def football_data_get(endpoint, timeout=10):
     except requests.exceptions.RequestException as e:
         flash(f'Error de conexión: {e}', 'danger')
         return None
+
+# ThingSpeak Functions
+def send_to_thingspeak(goals_for, goals_against, points=None):
+    """Envía datos del partido a ThingSpeak"""
+    try:
+        if not THINGSPEAK_API_KEY or THINGSPEAK_API_KEY.startswith('TU_WRITE_API_KEY'):
+            print("❌ ThingSpeak no configurado - saltando envío")
+            return False
+            
+        # Calcular diferencia de goles
+        goal_difference = (goals_for or 0) - (goals_against or 0)
+        
+        payload = {
+            'api_key': THINGSPEAK_API_KEY,
+            'field1': goals_for or 0,
+            'field2': goals_against or 0,
+            'field3': points or 0,
+            'field4': goal_difference,
+            'field5': 1 if (goals_for or 0) > (goals_against or 0) else 0,
+            'field6': 1 if (goals_for or 0) == (goals_against or 0) else 0,
+            'field7': 1 if (goals_for or 0) < (goals_against or 0) else 0,
+        }
+        
+        print(f"📤 Enviando a ThingSpeak: {payload}")
+        response = requests.post(f'{THINGSPEAK_BASE_URL}/update', params=payload, timeout=10)
+        
+        if response.status_code == 200:
+            print(f"✅ Datos enviados a ThingSpeak: {goals_for}-{goals_against}")
+            return True
+        else:
+            print(f"❌ Error ThingSpeak: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error enviando a ThingSpeak: {e}")
+        return False
 
 # Cache por más tiempo (30 minutos)
 @lru_cache(maxsize=128)
@@ -187,9 +223,6 @@ def build_match_list_from_matches(matches, team_id):
         home_score = score.get('home')
         away_score = score.get('away')
         
-        # DEBUG: Mostrar información del partido
-        print(f"DEBUG Partido {i+1}: {home_name} {home_score}-{away_score} {away_name}")
-        
         # Determinar si nuestro equipo es local o visitante
         if str(team_id) == str(home_id):
             goals_for = home_score
@@ -202,17 +235,23 @@ def build_match_list_from_matches(matches, team_id):
             opponent = home_name
             is_home = False
         
-        # Calcular resultado (siempre debería haber datos en partidos FINISHED)
+        # Calcular resultado y puntos
         if goals_for is not None and goals_against is not None:
             if goals_for > goals_against:
                 result = 'W'
+                points = 3
             elif goals_for == goals_against:
                 result = 'D'
+                points = 1
             else:
                 result = 'L'
+                points = 0
+            
+            # ✅ ENVIAR A THINGSPEAK SOLO SI HAY DATOS DE GOLES
+            send_to_thingspeak(goals_for, goals_against, points)
         else:
             result = None
-            print(f"DEBUG: ⚠️ Partido sin datos de goles: {home_name} vs {away_name}")
+            points = 0
         
         match_list.append({
             'date': date,
@@ -220,15 +259,12 @@ def build_match_list_from_matches(matches, team_id):
             'goals_for': goals_for,
             'goals_against': goals_against,
             'result': result,
+            'points': points,
             'is_home': is_home,
             'status': 'Finalizado',
             'competition': match.get('competition', {}).get('name', ''),
             'raw': match
         })
-    
-    # Contar partidos con datos de goles
-    matches_with_goals = sum(1 for m in match_list if m['goals_for'] is not None)
-    print(f"DEBUG: {matches_with_goals}/{len(match_list)} partidos tienen datos de goles")
     
     return match_list
 
