@@ -50,6 +50,11 @@
         border-radius: 15px;
         font-size: 0.8em;
       }
+      .thingspeak-frame {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
     </style>
   </head>
   <body>
@@ -216,6 +221,15 @@
                   </div>
                 </div>
 
+                <!-- Botón ThingSpeak -->
+                <div class="mb-3">
+                  <a href="{{ url_for('thingspeak_dashboard', team_id=selected_team, season=selected_season) }}" 
+                     class="btn btn-success" target="_blank">
+                     📊 Ver Gráficos Históricos en ThingSpeak
+                  </a>
+                  <small class="text-muted d-block mt-1">Envía los 15 últimos partidos y muestra gráficas completas</small>
+                </div>
+
                 <div class="table-responsive">
                   <table class="table table-striped table-sm">
                     <thead>
@@ -262,7 +276,7 @@
                   </table>
                 </div>
 
-                <!-- Gráficos -->
+                <!-- Gráficos locales -->
                 <div class="mt-4">
                   <h5 class="mb-3">📊 Gráficos de Rendimiento - {{ seasons[selected_season] }}</h5>
                   <div class="row">
@@ -299,6 +313,65 @@
                   </div>
                 </div>
 
+                <!-- Gráficos de ThingSpeak integrados -->
+                <div class="mt-4">
+                  <h5 class="mb-3">📈 Gráficos ThingSpeak - Datos Históricos</h5>
+                  <div class="alert alert-info">
+                    <strong>💡 Tip:</strong> Estos gráficos muestran todos los partidos históricos enviados a ThingSpeak
+                  </div>
+                  
+                  <div class="row">
+                    <div class="col-md-6 mb-3">
+                      <div class="chart-container">
+                        <h6>Goles a Favor - ThingSpeak</h6>
+                        <iframe width="100%" height="260" style="border: 1px solid #cccccc;" 
+                        src="https://thingspeak.com/channels/3179450/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&title=Goles+a+favor&type=line&xaxis=Fecha&yaxis=Goles"></iframe>
+                      </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                      <div class="chart-container">
+                        <h6>Goles en Contra - ThingSpeak</h6>
+                        <iframe width="100%" height="260" style="border: 1px solid #cccccc;" 
+                        src="https://thingspeak.com/channels/3179450/charts/2?bgcolor=%23ffffff&color=%233665c9&dynamic=true&results=60&title=Goles+en+contra&type=line&xaxis=Fecha&yaxis=Goles"></iframe>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row">
+                    <div class="col-md-6 mb-3">
+                      <div class="chart-container">
+                        <h6>Puntos Obtenidos - ThingSpeak</h6>
+                        <iframe width="100%" height="260" style="border: 1px solid #cccccc;" 
+                        src="https://thingspeak.com/channels/3179450/charts/3?bgcolor=%23ffffff&color=%2311a336&dynamic=true&results=60&title=Puntos+obtenidos&type=column&xaxis=Fecha&yaxis=Puntos"></iframe>
+                      </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                      <div class="chart-container">
+                        <h6>Diferencia de Goles - ThingSpeak</h6>
+                        <iframe width="100%" height="260" style="border: 1px solid #cccccc;" 
+                        src="https://thingspeak.com/channels/3179450/charts/4?bgcolor=%23ffffff&color=%23e68c1f&dynamic=true&results=60&title=Diferencia+de+goles&type=line&xaxis=Fecha&yaxis=Diferencia"></iframe>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row">
+                    <div class="col-md-12 mb-3">
+                      <div class="chart-container">
+                        <h6>Resultados (Victorias/Empates/Derrotas) - ThingSpeak</h6>
+                        <iframe width="100%" height="260" style="border: 1px solid #cccccc;" 
+                        src="https://thingspeak.com/channels/3179450/charts/5?bgcolor=%23ffffff&color=%2311a336&dynamic=true&results=60&title=Victorias&type=column&xaxis=Fecha&yaxis=Si/No">
+                        </iframe>
+                        <iframe width="100%" height="260" style="border: 1px solid #cccccc;" 
+                        src="https://thingspeak.com/channels/3179450/charts/6?bgcolor=%23ffffff&color=%23e68c1f&dynamic=true&results=60&title=Empates&type=column&xaxis=Fecha&yaxis=Si/No">
+                        </iframe>
+                        <iframe width="100%" height="260" style="border: 1px solid #cccccc;" 
+                        src="https://thingspeak.com/channels/3179450/charts/7?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&title=Derrotas&type=column&xaxis=Fecha&yaxis=Si/No">
+                        </iframe>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               {% else %}
                 <div class="text-center py-4">
                   <p class="text-muted">No hay partidos FINALIZADOS para mostrar.</p>
@@ -318,7 +391,7 @@
             <div class="card-body">
               <p class="small mb-2"><strong>API:</strong> Football-Data.org (10 requests/minuto)</p>
               <p class="small mb-2"><strong>⚠️ IMPORTANTE:</strong> Solo se muestran partidos <strong>FINALIZADOS</strong></p>
-              <p class="small mb-2"><strong>🔍 Datos:</strong> Los gráficos funcionan con partidos que ya tienen resultados</p>
+              <p class="small mb-2"><strong>📊 ThingSpeak:</strong> Los gráficos muestran datos históricos de todos los partidos</p>
               <p class="small mb-0"><strong>🕐 Temporadas:</strong> Usa temporadas anteriores para ver más datos históricos</p>
             </div>
           </div>
@@ -326,7 +399,7 @@
       </div>
 
       <footer class="mt-4 text-muted small text-center">
-        <p>Proyecto demo - Datos proporcionados por <a href="https://www.football-data.org/" target="_blank">Football-Data.org</a></p>
+        <p>Proyecto demo - Datos proporcionados por <a href="https://www.football-data.org/" target="_blank">Football-Data.org</a> | Gráficos históricos por <a href="https://thingspeak.com/channels/3179450" target="_blank">ThingSpeak</a></p>
       </footer>
     </div>
 
